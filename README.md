@@ -21,7 +21,7 @@ For now, just see:
  * [VoucherMapper](src/test/java/com/github/overview_repo/repo/VoucherMapper.java)
  * [VoucherRepository](src/test/java/com/github/overview_repo/repo/VoucherRepository.java)
  * [VoucherRepositoryImpl](src/test/java/com/github/overview_repo/repo/VoucherRepositoryImpl.java)
- * Methods in repository that you will gain implemented (repo interface): [Repository](src/main/java/cz/etn/overview/repo/Repository.java)
+ * Methods in repository that you will gain implemented (repo interface): [Repository](src/main/java/com/github/overview_repo/repo/Repository.java)
  * Just add attributes and implement composeFilterConditions method in your entity mapper.
 
 ## Planned features
