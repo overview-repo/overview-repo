@@ -1,0 +1,134 @@
+// See authoritative guide for publishing to public Maven central repo 
+// with Gradle: http://central.sonatype.org/pages/gradle.html
+// and also http://jedicoder.blogspot.cz/2011/11/automated-gradle-project-deployment-to.html
+buildscript {
+  repositories { jcenter() }
+}
+
+// Other plugins using plugins DSL
+// release plugin adding release task, see: https://github.com/researchgate/gradle-release
+plugins {
+  id 'net.researchgate.release' version '2.1.2'
+}
+
+apply plugin: 'java'
+apply plugin: 'maven' // takes care of the metadata, generates the pom.xml when publishing to maven central, deploys build output to repo
+apply plugin: 'signing' // signs generated artifacts: https://docs.gradle.org/current/userguide/signing_plugin.html
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+
+
+ext.isReleaseVersion = !version.endsWith("SNAPSHOT")
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+  mavenCentral()
+  jcenter() 
+}
+
+dependencies {
+  compile "org.slf4j:slf4j-api:1.7.25"
+
+  testCompile "ch.qos.logback:logback-classic:1.2.2"
+  testCompile "junit:junit:4.8.2"
+  testCompile "com.h2database:h2:1.3.159"
+  testCompile "org.mockito:mockito-core:2.7.5"
+  testCompile "org.apache.commons:commons-lang3:3.5"
+  testCompile "com.google.guava:guava:21.0"
+}
+
+// Task for generating javadoc artifact
+task javadocJar(type: Jar) {
+  classifier = 'javadoc'
+  from javadoc
+}
+
+// Task for generating sources artifact
+task sourcesJar(type: Jar) {
+  classifier = 'sources'
+  from sourceSets.main.allSource
+}
+
+// Gather all output artifacts together
+artifacts {
+  archives jar  
+  archives javadocJar
+  archives sourcesJar
+}
+
+// See: http://blog.sonatype.com/2010/01/how-to-generate-pgp-signatures-with-maven/
+if (isReleaseVersion) {
+  signing {
+    // Conditions under which the signing is executed
+    required { isReleaseVersion }
+    sign configurations.archives
+  }
+}
+
+// Deployment to Maven Central repository can be started using: gradle uploadArchives
+// The credentials for signing and upload are stored in <user-home>/.gradle/gradle.properties file
+// Signing key is stored in <user-home>/AppData/Roaming/gnupg/secring.gpg
+uploadArchives {
+  repositories {
+    mavenDeployer {
+      beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+      // Sonatype Nexus Staging
+      repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+        // authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      // Sonatype Nexus Snapshost
+      snapshotRepository(url: "https://oss.sonatype.org/content/repositories/snapshots/") {
+        // authentication(userName: ossrhUsername, password: ossrhPassword)
+      }
+
+      pom.project {
+        name 'overview-repo'
+        packaging 'jar'
+        // optionally artifactId can be defined here
+        artifactId 'overview-repo' 
+        description 'The library ensures loading of data with filtering, ordering and pagination settings. It contains generic full-featured complete repository.'
+        url 'https://github.com/overview-repo'
+
+        scm {
+          developerConnection 'scm:git:git@github.com:overview-repo/overview-repo.git'
+          url 'git@github.com:overview-repo/overview-repo.git'
+        }
+
+        licenses {
+          license {
+            name 'The Apache License, Version 2.0'
+            url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+          }
+        }
+
+        developers {
+          developer {
+            id 'beranradek'
+            name 'Radek Beran'
+            email 'beran.radek@seznam.cz'
+          }
+        }
+      }
+    }
+  }
+}
+
+// Turning off doclint javadoc style checker that produces strict errors.
+// See: http://blog.joda.org/2014/02/turning-off-doclint-in-jdk-8-javadoc.html
+allprojects {
+  tasks.withType(Javadoc) {
+    options.addStringOption('Xdoclint:none', '-quiet')
+  }
+}
+
+// Make sure uploadArchives (uploading artifacts to Maven central) is performed
+// after the build with the release version has finished 
+afterReleaseBuild.dependsOn uploadArchives
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.4.1'
+}
